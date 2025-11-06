@@ -4,7 +4,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "ts-node src/index.ts",
-    "build": "npx tsc",
+    "build": "npx tsc --skipLibCheck --noEmit false",
     "start": "node dist/index.js",
     "postinstall": "npx prisma generate",
     "deploy": "npx prisma db push",
@@ -12,7 +12,7 @@
     "seed": "npx prisma db seed",
     "studio": "npx prisma studio",
     "test": "echo \"No tests specified\" && exit 0",
-    "vercel-build": "npx prisma generate && npx tsc"
+    "vercel-build": "npx prisma generate && npx tsc --skipLibCheck --noEmit false"
   },
   "dependencies": {
     "@prisma/client": "6.9.0",
