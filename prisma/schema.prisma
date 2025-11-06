@@ -1,0 +1,284 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String
+  password        String
+  managerId       String?   // Foreign key for manager relation
+  role            String?   // Worker role or admin role
+  branchId        String?    // If user is a worker, which branch they belong to
+  ratings         Json?     // Worker ratings
+  availability    Json?     // Worker availability
+  isAuthenticated Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relations
+  branch          Branch?   @relation("BranchWorkers", fields: [branchId], references: [id], onDelete: SetNull)
+  ownedBranches   Branch[]  @relation("BranchOwner")
+  profile         UserProfile?
+  createdFranchises Franchise[]
+  managedSubmissions WorkerAvailabilitySubmission[] @relation("ManagerSubmissions")
+  submissions     WorkerAvailabilitySubmission[] @relation("WorkerSubmissions")
+  switchRequests  ShiftSwitchRequest[] @relation("RequesterSwitchRequests")
+  targetSwitchRequests ShiftSwitchRequest[] @relation("TargetSwitchRequests")
+  managerSwitchRequests ShiftSwitchRequest[] @relation("ManagerSwitchRequests")
+  createdRestrictions WorkerRestriction[] @relation("RestrictionCreator")
+  restrictions1   WorkerRestriction[] @relation("Worker1Restrictions")
+  restrictions2   WorkerRestriction[] @relation("Worker2Restrictions")
+  
+  // Self-relation for manager-worker hierarchy
+  manager         User?    @relation("ManagerWorkers", fields: [managerId], references: [id], onDelete: SetNull)
+  workers         User[]   @relation("ManagerWorkers")
+  
+  @@index([branchId])
+  @@index([email])
+  @@index([managerId])
+}
+
+model UserProfile {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  ratings      Json     // Detailed ratings object
+  availability Json     // Weekly availability schedule
+  preferences  Json?    // Additional preferences/settings
+  notes        String?  // Manager notes
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+model Branch {
+  id           String        @id @default(cuid())
+  name         String
+  ownerId      String?
+  franchiseId  String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  // Relations
+  owner        User?          @relation("BranchOwner", fields: [ownerId], references: [id])
+  workers      User[]        @relation("BranchWorkers")
+  franchise    Franchise    @relation(fields: [franchiseId], references: [id])
+  settings     BranchSettings?
+  schedules    Schedule[]
+  restrictions WorkerRestriction[]
+  
+  @@index([ownerId])
+  @@index([franchiseId])
+}
+
+model BranchSettings {
+  id            String          @id @default(cuid())
+  branchId      String          @unique
+  openingHours  Json            // Store opening hours as JSON
+  weekStartDay  WeekDay         @default(sunday)
+  ratingCriteria Json           // Array of rating criteria strings
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  
+  // Relations
+  branch        Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  shiftTemplates ShiftTemplate[]
+  schedulingPreferences SchedulingPreference[]
+  
+  
+  @@index([branchId])
+}
+
+model SchedulingPreference {
+  id                         String   @id @default(cuid())
+  settingsId                 String
+  maxHoursPerWeek            Int
+  maxConsecutiveDays         Int
+  minRestHours               Int
+  allowOvertime              Boolean    
+  overtimeThreshold          Int
+  preferExperiencedWorkers   Boolean    
+  balanceWorkload            Boolean    
+  prioritizeSkillMatch       Boolean    
+  sendScheduleNotifications  Boolean    
+  
+  // Relations
+  settings        BranchSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  
+  @@index([settingsId])
+}
+
+model ShiftTemplate {
+  id              String   @id @default(cuid())
+  settingsId      String
+  name            String
+  startTime       String
+  endTime         String
+  requiredWorkers Int
+  priority        Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  days            WeekDay[]
+  
+  // Relations
+  settings        BranchSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  
+  @@index([settingsId])
+}
+
+model Schedule {
+  id            String           @id @default(cuid())
+  branchId      String
+  weekStartDate DateTime
+  shifts        ScheduledShift[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  archived      Boolean          @default(false)
+  
+  // Relations
+  branch        Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  switchRequests ShiftSwitchRequest[]
+  
+  @@unique([branchId, weekStartDate])
+  @@index([branchId])
+}
+
+model ScheduledShift {
+  id              String   @id @default(cuid())
+  scheduleId      String
+  templateId      String
+  date            DateTime
+  startTime       String
+  endTime         String
+  assignedWorkers Json     // Store array of worker IDs as JSON
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  schedule        Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  requesterSwitchRequests ShiftSwitchRequest[] @relation("RequesterShiftRequests")
+  targetSwitchRequests ShiftSwitchRequest[] @relation("TargetShiftRequests")
+  
+  @@index([scheduleId])
+  @@index([date])
+}
+
+model Franchise {
+  id        String   @id @default(cuid())
+  name      String
+  key       String   @unique
+  createdAt DateTime @default(now())
+  createdBy String
+  isActive  Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  creator   User     @relation(fields: [createdBy], references: [id])
+  branches  Branch[]
+  
+  @@index([createdBy])
+}
+
+model WorkerAvailabilitySubmission {
+  id            String   @id @default(cuid())
+  workerId      String
+  managerId     String
+  weekStartDate DateTime
+  availability  Json     // Store availability object as JSON
+  submittedAt   DateTime @default(now())
+  status        SubmissionStatus @default(pending)
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  worker        User     @relation("WorkerSubmissions", fields: [workerId], references: [id], onDelete: Cascade)
+  manager       User     @relation("ManagerSubmissions", fields: [managerId], references: [id])
+  
+  @@unique([workerId, weekStartDate])
+  @@index([workerId])
+  @@index([managerId])
+  @@index([weekStartDate])
+}
+
+model ShiftSwitchRequest {
+  id                String   @id @default(cuid())
+  requesterId       String
+  requesterShiftId  String
+  targetWorkerId    String
+  targetShiftId     String
+  scheduleId        String
+  reason            String
+  status            SwitchRequestStatus @default(pending)
+  requestedAt       DateTime @default(now())
+  respondedAt       DateTime?
+  managerApprovedAt DateTime?
+  managerId         String
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  requester         User     @relation("RequesterSwitchRequests", fields: [requesterId], references: [id])
+  targetWorker      User     @relation("TargetSwitchRequests", fields: [targetWorkerId], references: [id])
+  manager           User     @relation("ManagerSwitchRequests", fields: [managerId], references: [id])
+  requesterShift    ScheduledShift @relation("RequesterShiftRequests", fields: [requesterShiftId], references: [id])
+  targetShift       ScheduledShift @relation("TargetShiftRequests", fields: [targetShiftId], references: [id])
+  schedule          Schedule @relation(fields: [scheduleId], references: [id])
+  
+  @@index([requesterId])
+  @@index([targetWorkerId])
+  @@index([managerId])
+  @@index([scheduleId])
+}
+
+model WorkerRestriction {
+  id        String   @id @default(cuid())
+  branchId  String
+  worker1Id String
+  worker2Id String
+  reason    String
+  createdAt DateTime @default(now())
+  createdBy String
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  worker1   User     @relation("Worker1Restrictions", fields: [worker1Id], references: [id], onDelete: Cascade)
+  worker2   User     @relation("Worker2Restrictions", fields: [worker2Id], references: [id], onDelete: Cascade)
+  creator   User     @relation("RestrictionCreator", fields: [createdBy], references: [id])
+  
+  @@unique([branchId, worker1Id, worker2Id])
+  @@index([branchId])
+  @@index([worker1Id])
+  @@index([worker2Id])
+}
+
+enum SubmissionStatus {
+  pending
+  approved
+  rejected
+}
+
+enum SwitchRequestStatus {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+enum WeekDay {
+  sunday
+  monday
+  tuesday
+  wednesday
+  thursday
+  friday
+  saturday
+}
