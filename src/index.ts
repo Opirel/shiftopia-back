@@ -16,8 +16,10 @@ app.use(cors({
     'http://localhost:3001',  // Create React App
     'http://localhost:5173',  // Vite default
     'http://localhost:8080',  // Vue CLI default
+    'https://shiftopia-frontend.onrender.com', // Production frontend URL
+    process.env.FRONTEND_URL, // Environment variable for frontend URL
     // Add your client's port here
-  ],
+  ].filter(Boolean), // Remove any undefined values
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
@@ -340,8 +342,8 @@ app.put(`/schedulingPreferences`, async (req, res) => {
 
   res.json()
 })
-const server = app.listen(8080, () =>
+const server = app.listen(process.env.PORT || 8080, () =>
   console.log(`
-🚀 Server ready at: http://localhost:8080
+🚀 Server ready at: http://localhost:${process.env.PORT || 8080}
 ⭐️ See sample requests: https://github.com/prisma/prisma-examples/blob/latest/orm/express/README.md#using-the-rest-api`),
 )

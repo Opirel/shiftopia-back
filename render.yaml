@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: shiftopia-backend
+    env: node
+    plan: free
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run deploy && npm start
+    healthCheckPath: /user
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+    disk:
+      name: shiftopia-backend-data
+      mountPath: /opt/render/project/node_modules/.prisma
+      sizeGB: 1
+
+databases:
+  - name: shiftopia-database
+    databaseName: shiftopia
+    user: shiftopia_user
+    plan: free
