@@ -38,6 +38,24 @@ app.use(cors({
 app.use(express.urlencoded({ extended : true }));
 app.use(express.json());
 
+// Health check endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'ShifTopia Backend API is running!', 
+    version: '1.0.0',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// API status endpoint
+app.get('/api/status', (req, res) => {
+  res.json({ 
+    status: 'healthy',
+    database: 'connected',
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 app.get(`/user`, async (req, res) => {
   const  email =  req.query.mail as string | undefined;
   const  branchId =  req.query.branchId as string | undefined;

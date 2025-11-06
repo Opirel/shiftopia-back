@@ -11,7 +11,8 @@
     "migrate": "npx prisma migrate deploy",
     "seed": "npx prisma db seed",
     "studio": "npx prisma studio",
-    "test": "echo \"No tests specified\" && exit 0"
+    "test": "echo \"No tests specified\" && exit 0",
+    "vercel-build": "npx prisma generate && npx tsc"
   },
   "dependencies": {
     "@prisma/client": "6.9.0",
@@ -20,6 +21,7 @@
     "express": "5.1.0"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
     "@types/express": "5.0.3",
     "@types/node": "22.15.32",
     "prisma": "6.9.0",
